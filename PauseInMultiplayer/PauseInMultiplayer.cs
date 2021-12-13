@@ -37,8 +37,13 @@ namespace PauseInMultiplayer
 
             //set the pause time data to whether or not time should be paused for this player
             Game1.player.modData["jorgamun/pauseTime"] = (!Context.IsPlayerFree) ? "true" : "false";
+            
+            if(!Game1.player.canMove)
+                Game1.player.modData["jorgamun/pauseTime"] = "true";
+
             if (Game1.currentMinigame != null)
                 Game1.player.modData["jorgamun/pauseTime"] = "true";
+
 
             //this logic only applies for the main player to control the state of the world
             if (Context.IsMainPlayer)
