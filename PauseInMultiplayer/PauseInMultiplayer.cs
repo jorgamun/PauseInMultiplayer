@@ -200,7 +200,7 @@ namespace PauseInMultiplayer
             }
             else
             {
-                return pauseCommand == "false" ? false : true;
+                return pauseCommand == "true" ? true : false;
             }
 
         }
