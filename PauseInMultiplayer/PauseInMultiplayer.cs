@@ -22,6 +22,8 @@ namespace PauseInMultiplayer
 
         string pauseCommand = "false";
 
+        bool shouldPauseLast = false;
+
         public override void Entry(IModHelper helper)
         {
 
@@ -81,26 +83,42 @@ namespace PauseInMultiplayer
             if (!Context.IsWorldReady) return;
 
             //set the pause time data to whether or not time should be paused for this player
-            pauseTime = (!Context.IsPlayerFree) ? "true" : "false";
+            var pauseTime2 = (!Context.IsPlayerFree) ? "true" : "false";
 
             if (!Context.CanPlayerMove)
-                pauseTime = "true";
+                pauseTime2 = "true";
 
             if (Game1.currentMinigame != null)
-                pauseTime = "true";
+                pauseTime2 = "true";
 
             if (Context.IsMainPlayer)
-                pauseTimeAll[Game1.player.UniqueMultiplayerID] = pauseTime;
+            {
+                //host
+                if(pauseTime != pauseTime2)
+                {
+                    pauseTime = pauseTime2;
+                    pauseTimeAll[Game1.player.UniqueMultiplayerID] = pauseTime;
+                }
+                
+            }
+                
             else
-                this.Helper.Multiplayer.SendMessage(pauseTime, "pauseTime", modIDs: new[] { this.ModManifest.UniqueID }, playerIDs: new[] { Game1.MasterPlayer.UniqueMultiplayerID });
+            {
+                //client
+                if(pauseTime != pauseTime2)
+                {
+                    pauseTime = pauseTime2;
+                    this.Helper.Multiplayer.SendMessage(pauseTime, "pauseTime", modIDs: new[] { this.ModManifest.UniqueID }, playerIDs: new[] { Game1.MasterPlayer.UniqueMultiplayerID });
+                }
+            }
 
+            var shouldPauseNow = shouldPause();
 
             //this logic only applies for the main player to control the state of the world
             if (Context.IsMainPlayer)
             {
-                if (shouldPause())
+                if (shouldPauseNow)
                 {
-                    this.Helper.Multiplayer.SendMessage("true", "pauseCommand", new[] { this.ModManifest.UniqueID });
 
                     //save the last time interval, if it's not already saved
                     if (Game1.gameTimeInterval >= 0) timeInterval = Game1.gameTimeInterval;
@@ -135,17 +153,21 @@ namespace PauseInMultiplayer
                     //reset time interval if it hasn't been fixed from the last pause
                     if (Game1.gameTimeInterval < 0)
                     {
-                        this.Helper.Multiplayer.SendMessage("false", "pauseCommand", new[] { this.ModManifest.UniqueID });
 
                         Game1.gameTimeInterval = timeInterval;
                         timeInterval = -100;
                     }
 
                 }
+
+                if(shouldPauseNow != shouldPauseLast)
+                    this.Helper.Multiplayer.SendMessage(shouldPauseNow ? "true" : "false", "pauseCommand", new[] { this.ModManifest.UniqueID });
+                
+                shouldPauseLast = shouldPauseNow;
             }
 
             //pause food and drink buff durations must be run for each player independently
-            if (shouldPause())
+            if (shouldPauseNow)
             {
                 //set temporary duration locks if it has just become paused
                 if (foodDuration < 0 && Game1.buffsDisplay.food != null)
