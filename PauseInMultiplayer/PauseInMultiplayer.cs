@@ -47,6 +47,8 @@ namespace PauseInMultiplayer
                 pauseTimeAll[e.Peer.PlayerID] = "false";
         }
 
+        
+
         private void Multiplayer_ModMessageReceived(object? sender, StardewModdingAPI.Events.ModMessageReceivedEventArgs e)
         {
             if (Context.IsMainPlayer)
@@ -169,10 +171,10 @@ namespace PauseInMultiplayer
             //pause food and drink buff durations must be run for each player independently
             if (shouldPauseNow)
             {
-                //set temporary duration locks if it has just become paused
-                if (foodDuration < 0 && Game1.buffsDisplay.food != null)
+                //set temporary duration locks if it has just become paused and/or update Duration if new food is consumed during pause
+                if (Game1.buffsDisplay.food != null && Game1.buffsDisplay.food.millisecondsDuration > foodDuration)
                     foodDuration = Game1.buffsDisplay.food.millisecondsDuration;
-                if (drinkDuration < 0 && Game1.buffsDisplay.drink != null)
+                if (Game1.buffsDisplay.drink != null && Game1.buffsDisplay.drink.millisecondsDuration > drinkDuration)
                     drinkDuration = Game1.buffsDisplay.drink.millisecondsDuration;
 
                 if (Game1.buffsDisplay.food != null)
