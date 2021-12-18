@@ -90,6 +90,13 @@ namespace PauseInMultiplayer
             if (!Context.CanPlayerMove)
                 pauseTime2 = "true";
 
+            //checks to see if the fishing rod has been cast. If this is true but the player is in the fishing minigame, the next if statement will pause - otherwise it won't
+            if (Game1.player.CurrentItem != null && Game1.player.CurrentItem is StardewValley.Tools.FishingRod && (Game1.player.CurrentItem as StardewValley.Tools.FishingRod).isFishing)
+                pauseTime2 = "false";
+
+            if (Game1.activeClickableMenu != null && Game1.activeClickableMenu is StardewValley.Menus.BobberBar)
+                pauseTime2 = "true";
+
             if (Game1.currentMinigame != null)
                 pauseTime2 = "true";
 
