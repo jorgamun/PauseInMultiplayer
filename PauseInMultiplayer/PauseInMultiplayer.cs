@@ -5,6 +5,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using Microsoft.Xna.Framework;
+using Microsoft.Xna.Framework.Graphics;
 using StardewModdingAPI;
 using StardewValley;
 
@@ -24,8 +25,11 @@ namespace PauseInMultiplayer
 
         bool shouldPauseLast = false;
 
+        ModConfig config;
+
         public override void Entry(IModHelper helper)
         {
+            this.config = Helper.ReadConfig<ModConfig>();
 
             Helper.Events.GameLoop.SaveLoaded += GameLoop_SaveLoaded;
             Helper.Events.GameLoop.UpdateTicking += GameLoop_UpdateTicking;
@@ -33,6 +37,19 @@ namespace PauseInMultiplayer
             Helper.Events.Multiplayer.ModMessageReceived += Multiplayer_ModMessageReceived;
             Helper.Events.Multiplayer.PeerConnected += Multiplayer_PeerConnected;
             Helper.Events.Multiplayer.PeerDisconnected += Multiplayer_PeerDisconnected;
+
+            Helper.Events.Display.Rendered += Display_Rendered;
+        }
+
+        private void Display_Rendered(object? sender, StardewModdingAPI.Events.RenderedEventArgs e)
+        {
+            if (!Context.IsWorldReady) return;
+
+            //draw X over time indicator
+            if (shouldPause() && this.config.ShowPauseX && Game1.displayHUD)
+                Game1.spriteBatch.Draw(Game1.mouseCursors, updatePosition(), new Rectangle(269, 471, 15, 15), new Color(0, 0, 0, 128), 0f, Vector2.Zero, 4f, SpriteEffects.None, 0.91f);
+
+
         }
 
         private void Multiplayer_PeerDisconnected(object? sender, StardewModdingAPI.Events.PeerDisconnectedEventArgs e)
@@ -188,6 +205,7 @@ namespace PauseInMultiplayer
                     Game1.buffsDisplay.food.millisecondsDuration = foodDuration;
                 if (Game1.buffsDisplay.drink != null)
                     Game1.buffsDisplay.drink.millisecondsDuration = drinkDuration;
+
             }
             else
             {
@@ -213,5 +231,26 @@ namespace PauseInMultiplayer
             }
 
         }
+
+        private Vector2 updatePosition()
+        {
+            var position = new Vector2(Game1.uiViewport.Width - 300, 8f);
+            if (Game1.isOutdoorMapSmallerThanViewport())
+            {
+                position = new Vector2(Math.Min(position.X, -Game1.uiViewport.X + Game1.currentLocation.map.Layers[0].LayerWidth * 64 - 300), 8f);
+            }
+
+            Utility.makeSafe(ref position, 300, 284);
+
+            position.X += 23;
+            position.Y += 55;
+
+            return position;
+        }
+    }
+
+    class ModConfig
+    {
+        public bool ShowPauseX { get; set; } = true;
     }
 }
