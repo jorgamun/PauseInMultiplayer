@@ -21,9 +21,15 @@ namespace PauseInMultiplayer
         string pauseTime = "false";
         IDictionary<long, string> pauseTimeAll;
 
+        string inSkull = "false";
+        IDictionary<long, string> inSkullAll;
+
         string pauseCommand = "false";
 
         bool shouldPauseLast = false;
+        string inSkullLast = "false";
+
+        bool extraTimeAdded = false;
 
         ModConfig config;
 
@@ -47,7 +53,7 @@ namespace PauseInMultiplayer
 
             //draw X over time indicator
             if (shouldPause() && this.config.ShowPauseX && Game1.displayHUD)
-                Game1.spriteBatch.Draw(Game1.mouseCursors, updatePosition(), new Rectangle(269, 471, 15, 15), new Color(0, 0, 0, 128), 0f, Vector2.Zero, 4f, SpriteEffects.None, 0.91f);
+                Game1.spriteBatch.Draw(Game1.mouseCursors, updatePosition(), new Rectangle(269, 471, 15, 15), new Color(0, 0, 0, 64), 0f, Vector2.Zero, 4f, SpriteEffects.None, 0.91f);
 
 
         }
@@ -55,13 +61,21 @@ namespace PauseInMultiplayer
         private void Multiplayer_PeerDisconnected(object? sender, StardewModdingAPI.Events.PeerDisconnectedEventArgs e)
         {
             if (Context.IsMainPlayer)
+            {
                 pauseTimeAll.Remove(e.Peer.PlayerID);
+                inSkullAll.Remove(e.Peer.PlayerID);
+            }
+                
         }
 
         private void Multiplayer_PeerConnected(object? sender, StardewModdingAPI.Events.PeerConnectedEventArgs e)
         {
             if (Context.IsMainPlayer)
+            {
                 pauseTimeAll[e.Peer.PlayerID] = "false";
+                inSkullAll[e.Peer.PlayerID] = "false";
+            }
+                
         }
 
         
@@ -70,9 +84,12 @@ namespace PauseInMultiplayer
         {
             if (Context.IsMainPlayer)
             {
-                if (e.FromModID == this.ModManifest.UniqueID && e.Type == "pauseTime")
+                if (e.FromModID == this.ModManifest.UniqueID)
                 {
-                    pauseTimeAll[e.FromPlayerID] = e.ReadAs<string>();
+                    if (e.Type == "pauseTime")
+                        pauseTimeAll[e.FromPlayerID] = e.ReadAs<string>();
+                    else if (e.Type == "inSkull")
+                        inSkullAll[e.FromPlayerID] = e.ReadAs<string>();
                 }
             }
             else
@@ -92,6 +109,9 @@ namespace PauseInMultiplayer
             {
                 pauseTimeAll = new Dictionary<long, string>();
                 pauseTimeAll[Game1.player.UniqueMultiplayerID] = "false";
+
+                inSkullAll = new Dictionary<long, string>();
+                inSkullAll[Game1.player.UniqueMultiplayerID] = "false";
             }
 
         }
@@ -107,6 +127,10 @@ namespace PauseInMultiplayer
             if (!Context.CanPlayerMove)
                 pauseTime2 = "true";
 
+            //time should not be paused when using a tool
+            if (Game1.player.usingTool)
+                pauseTime2 = "false";
+
             //checks to see if the fishing rod has been cast. If this is true but the player is in the fishing minigame, the next if statement will pause - otherwise it won't
             if (Game1.player.CurrentItem != null && Game1.player.CurrentItem is StardewValley.Tools.FishingRod && (Game1.player.CurrentItem as StardewValley.Tools.FishingRod).isFishing)
                 pauseTime2 = "false";
@@ -117,6 +141,45 @@ namespace PauseInMultiplayer
             if (Game1.currentMinigame != null)
                 pauseTime2 = "true";
 
+            //skip skull cavern fix logic if the main player has it disabled, or if is not multiplayer
+            if (!Game1.IsMultiplayer)
+                goto endSkullLogic;
+            if (Context.IsMainPlayer && !this.config.FixSkullTime)
+                goto endSkullLogic;
+
+
+            //check status to see if player is in Skull Cavern
+            if (Game1.player.currentLocation is StardewValley.Locations.MineShaft && (Game1.player.currentLocation as StardewValley.Locations.MineShaft).getMineArea() > 120)
+                inSkull = "true";
+            else
+                inSkull = "false";
+
+            if(inSkull != inSkullLast)
+            {
+                if (Context.IsMainPlayer)
+                    inSkullAll[Game1.player.UniqueMultiplayerID] = inSkull;
+                else
+                    this.Helper.Multiplayer.SendMessage(inSkull, "inSkull", modIDs: new[] { this.ModManifest.UniqueID }, playerIDs: new[] { Game1.MasterPlayer.UniqueMultiplayerID });
+
+                inSkullLast = inSkull;
+            }
+
+            //apply the logic to remove 2000 from the time interval if everyone is in the skull cavern and this hasn't been done yet per this 10 minute day period
+            if (Context.IsMainPlayer && Game1.gameTimeInterval > 6000 && allInSkull())
+            {
+                if(!extraTimeAdded)
+                {
+                    extraTimeAdded = true;
+                    Game1.gameTimeInterval -= 2000;
+                }
+            }
+
+            if (Context.IsMainPlayer && Game1.gameTimeInterval < 10)
+                extraTimeAdded = false;
+
+            endSkullLogic:
+
+            //handle pause time data
             if (Context.IsMainPlayer)
             {
                 //host
@@ -232,6 +295,19 @@ namespace PauseInMultiplayer
 
         }
 
+        private bool allInSkull()
+        {
+            if (Context.IsMainPlayer)
+            {
+                foreach (string inSkull in inSkullAll.Values)
+                    if (inSkull == "false") return false;
+
+                return true;
+            }
+
+            return false;
+        }
+
         private Vector2 updatePosition()
         {
             var position = new Vector2(Game1.uiViewport.Width - 300, 8f);
@@ -252,5 +328,7 @@ namespace PauseInMultiplayer
     class ModConfig
     {
         public bool ShowPauseX { get; set; } = true;
+
+        public bool FixSkullTime { get; set; } = true;
     }
 }
