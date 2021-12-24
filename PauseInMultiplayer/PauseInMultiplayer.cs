@@ -31,6 +31,10 @@ namespace PauseInMultiplayer
 
         bool extraTimeAdded = false;
 
+        int healthLock = -100;
+        Dictionary<StardewValley.Monsters.Monster, Vector2> monsterLocks = new Dictionary<StardewValley.Monsters.Monster, Vector2>();
+        bool lockMonsters = false;
+
         ModConfig config;
 
         public override void Entry(IModHelper helper)
@@ -74,6 +78,9 @@ namespace PauseInMultiplayer
             {
                 pauseTimeAll[e.Peer.PlayerID] = "false";
                 inSkullAll[e.Peer.PlayerID] = "false";
+
+                //send message denoting whether or not monsters will be locked
+                this.Helper.Multiplayer.SendMessage(lockMonsters ? "true" : "false", "lockMonsters", modIDs: new[] {this.ModManifest.UniqueID}, playerIDs: new[] {e.Peer.PlayerID});
             }
                 
         }
@@ -98,6 +105,10 @@ namespace PauseInMultiplayer
                 {
                     pauseCommand = e.ReadAs<string>();
                 }
+                else if(e.FromModID == this.ModManifest.UniqueID && e.Type == "lockMonsters")
+                {
+                    this.lockMonsters = e.ReadAs<string>() == "true" ? true : false;
+                }
             }
 
         }
@@ -112,6 +123,9 @@ namespace PauseInMultiplayer
 
                 inSkullAll = new Dictionary<long, string>();
                 inSkullAll[Game1.player.UniqueMultiplayerID] = "false";
+
+                //setup lockMonsters for main player
+                lockMonsters = this.config.LockMonsters;
             }
 
         }
@@ -128,7 +142,7 @@ namespace PauseInMultiplayer
                 pauseTime2 = "true";
 
             //time should not be paused when using a tool
-            if (Game1.player.usingTool)
+            if (Game1.player.UsingTool)
                 pauseTime2 = "false";
 
             //checks to see if the fishing rod has been cast. If this is true but the player is in the fishing minigame, the next if statement will pause - otherwise it won't
@@ -235,6 +249,27 @@ namespace PauseInMultiplayer
                                 animal.pauseTimer = 100;
                     }
 
+                    if (!lockMonsters) goto endMonsterLogic;
+                    //pause all Monsters
+                    List<GameLocation> farmerLocations = new List<GameLocation>();
+                    foreach (Farmer f in Game1.getOnlineFarmers())
+                        farmerLocations.Add(f.currentLocation);
+                    foreach (GameLocation l in farmerLocations)
+                    {
+                        foreach (Character c in l.characters)
+                        {
+                            if (c is StardewValley.Monsters.Monster)
+                            {
+                                if (!monsterLocks.ContainsKey(c as StardewValley.Monsters.Monster))
+                                    monsterLocks.Add(c as StardewValley.Monsters.Monster, c.Position);
+                                c.Position = monsterLocks[c as StardewValley.Monsters.Monster];
+                            }
+                        }
+                    }
+                    endMonsterLogic:;
+
+
+
                 }
                 else
                 {
@@ -247,6 +282,9 @@ namespace PauseInMultiplayer
                         timeInterval = -100;
                     }
 
+                    //reset monsterLocks
+                    monsterLocks.Clear();
+
                 }
 
                 if(shouldPauseNow != shouldPauseLast)
@@ -256,6 +294,7 @@ namespace PauseInMultiplayer
             }
 
             //pause food and drink buff durations must be run for each player independently
+            //handle health locks on a per player basis
             if (shouldPauseNow)
             {
                 //set temporary duration locks if it has just become paused and/or update Duration if new food is consumed during pause
@@ -269,11 +308,21 @@ namespace PauseInMultiplayer
                 if (Game1.buffsDisplay.drink != null)
                     Game1.buffsDisplay.drink.millisecondsDuration = drinkDuration;
 
+                if (!lockMonsters) goto endHealthLogic;
+                //health lock
+                if (healthLock == -100)
+                    healthLock = Game1.player.health;
+                Game1.player.health = healthLock;
+
+                endHealthLogic:;
+
             }
             else
             {
                 foodDuration = -100;
                 drinkDuration = -100;
+
+                healthLock = -100;
             }
 
 
@@ -328,7 +377,7 @@ namespace PauseInMultiplayer
     class ModConfig
     {
         public bool ShowPauseX { get; set; } = true;
-
         public bool FixSkullTime { get; set; } = true;
+        public bool LockMonsters { get; set; } = true;
     }
 }
