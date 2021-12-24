@@ -314,7 +314,12 @@ namespace PauseInMultiplayer
                     healthLock = Game1.player.health;
                 Game1.player.health = healthLock;
 
-                endHealthLogic:;
+                Game1.player.temporarilyInvincible = true;
+                Game1.player.temporaryInvincibilityTimer = 1100;
+                Game1.player.currentTemporaryInvincibilityDuration = 1200;
+
+
+            endHealthLogic:;
 
             }
             else

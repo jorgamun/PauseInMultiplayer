@@ -5,10 +5,10 @@
     <TargetFramework>net5.0</TargetFramework>
     <ImplicitUsings>false</ImplicitUsings>
     <Nullable>enable</Nullable>
-    <AssemblyVersion>1.4.0</AssemblyVersion>
-    <FileVersion>1.4.0</FileVersion>
-    <Version>1.4.0</Version>
-    <PackageReleaseNotes>Skull Cavern fix implemented</PackageReleaseNotes>
+    <AssemblyVersion>1.4.1</AssemblyVersion>
+    <FileVersion>1.4.1</FileVersion>
+    <Version>1.4.1</Version>
+    <PackageReleaseNotes>reinforced invincibility logic</PackageReleaseNotes>
   </PropertyGroup>
 
   <ItemGroup>
