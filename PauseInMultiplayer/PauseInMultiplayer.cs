@@ -315,8 +315,7 @@ namespace PauseInMultiplayer
                 Game1.player.health = healthLock;
 
                 Game1.player.temporarilyInvincible = true;
-                Game1.player.temporaryInvincibilityTimer = 1100;
-                Game1.player.currentTemporaryInvincibilityDuration = 1200;
+                Game1.player.temporaryInvincibilityTimer = -1000000000;
 
 
             endHealthLogic:;
@@ -328,6 +327,13 @@ namespace PauseInMultiplayer
                 drinkDuration = -100;
 
                 healthLock = -100;
+
+                if(Game1.player.temporaryInvincibilityTimer < -100000000)
+                {
+                    Game1.player.temporaryInvincibilityTimer = 0;
+                    Game1.player.currentTemporaryInvincibilityDuration = 0;
+                    Game1.player.temporarilyInvincible = false;
+                }
             }
 
 
