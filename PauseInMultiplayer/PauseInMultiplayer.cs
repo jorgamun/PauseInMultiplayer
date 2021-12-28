@@ -312,6 +312,10 @@ namespace PauseInMultiplayer
                 //health lock
                 if (healthLock == -100)
                     healthLock = Game1.player.health;
+                //catch edge cases where health has increased but asynchronously will not be applied before locking
+                if (Game1.player.health > healthLock)
+                    healthLock = Game1.player.health;
+
                 Game1.player.health = healthLock;
 
                 Game1.player.temporarilyInvincible = true;
