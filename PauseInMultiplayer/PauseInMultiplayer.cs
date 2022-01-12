@@ -46,7 +46,7 @@ namespace PauseInMultiplayer
             bool skullElevatorMod = Helper.ModRegistry.Get("SkullCavernElevator") != null;
             if (skullElevatorMod)
             {
-                this.Monitor.Log("DisableSkullShaftFix set to true due to SkullCavernElevator mod.");
+                this.Monitor.Log("DisableSkullShaftFix set to true due to SkullCavernElevator mod.", LogLevel.Debug);
                 this.config.DisableSkullShaftFix = true;
             }
 
@@ -342,9 +342,13 @@ namespace PauseInMultiplayer
 
                 if (num > 1)
                 {
-                    Game1.player.health = Math.Max(1, Game1.player.health - num * 3);
+
                     if (healthLock != -100)
+                    {
+                        Game1.player.health = Math.Max(1, Game1.player.health - num * 3);
                         healthLock = Game1.player.health;
+                    }
+                        
                 }
 
                 lastSkullLevel = (Game1.player.currentLocation as StardewValley.Locations.MineShaft).mineLevel;

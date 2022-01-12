@@ -5,10 +5,10 @@
     <TargetFramework>net5.0</TargetFramework>
     <ImplicitUsings>false</ImplicitUsings>
     <Nullable>enable</Nullable>
-    <AssemblyVersion>1.5.0</AssemblyVersion>
-    <FileVersion>1.5.0</FileVersion>
-    <Version>1.5.0</Version>
-    <PackageReleaseNotes>skull shaft hp fix, skull shaft hp fix disable with eleavator, handled edge case shouldPause error, checks versions, modified save order for compatibility</PackageReleaseNotes>
+    <AssemblyVersion>1.5.1</AssemblyVersion>
+    <FileVersion>1.5.1</FileVersion>
+    <Version>1.5.1</Version>
+    <PackageReleaseNotes>fixed frequent double damage bug for skull shaft</PackageReleaseNotes>
   </PropertyGroup>
 
   <ItemGroup>
