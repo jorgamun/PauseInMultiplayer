@@ -5,10 +5,10 @@
     <TargetFramework>net5.0</TargetFramework>
     <ImplicitUsings>false</ImplicitUsings>
     <Nullable>enable</Nullable>
-    <AssemblyVersion>1.4.3</AssemblyVersion>
-    <FileVersion>1.4.3</FileVersion>
-    <Version>1.4.3</Version>
-    <PackageReleaseNotes>fixed edge cases involving health increases</PackageReleaseNotes>
+    <AssemblyVersion>1.5.0</AssemblyVersion>
+    <FileVersion>1.5.0</FileVersion>
+    <Version>1.5.0</Version>
+    <PackageReleaseNotes>skull shaft hp fix, skull shaft hp fix disable with eleavator, handled edge case shouldPause error, checks versions, modified save order for compatibility</PackageReleaseNotes>
   </PropertyGroup>
 
   <ItemGroup>

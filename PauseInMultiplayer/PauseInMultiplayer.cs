@@ -23,11 +23,13 @@ namespace PauseInMultiplayer
 
         string inSkull = "false";
         IDictionary<long, string> inSkullAll;
+        int lastSkullLevel = 121;
 
         string pauseCommand = "false";
 
         bool shouldPauseLast = false;
         string inSkullLast = "false";
+
 
         bool extraTimeAdded = false;
 
@@ -41,14 +43,41 @@ namespace PauseInMultiplayer
         {
             this.config = Helper.ReadConfig<ModConfig>();
 
+            bool skullElevatorMod = Helper.ModRegistry.Get("SkullCavernElevator") != null;
+            if (skullElevatorMod)
+            {
+                this.Monitor.Log("DisableSkullShaftFix set to true due to SkullCavernElevator mod.");
+                this.config.DisableSkullShaftFix = true;
+            }
+
             Helper.Events.GameLoop.SaveLoaded += GameLoop_SaveLoaded;
             Helper.Events.GameLoop.UpdateTicking += GameLoop_UpdateTicking;
+            Helper.Events.GameLoop.Saving += GameLoop_Saving;
+            Helper.Events.GameLoop.DayEnding += GameLoop_DayEnding;
 
             Helper.Events.Multiplayer.ModMessageReceived += Multiplayer_ModMessageReceived;
             Helper.Events.Multiplayer.PeerConnected += Multiplayer_PeerConnected;
             Helper.Events.Multiplayer.PeerDisconnected += Multiplayer_PeerDisconnected;
 
             Helper.Events.Display.Rendered += Display_Rendered;
+        }
+
+        private void GameLoop_DayEnding(object? sender, StardewModdingAPI.Events.DayEndingEventArgs e)
+        {
+            //reset invincibility settings while saving to help prevent future potential errors if the mod is disabled later
+            //redudant with Saving to handle farmhand inconsistency
+            Game1.player.temporaryInvincibilityTimer = 0;
+            Game1.player.currentTemporaryInvincibilityDuration = 0;
+            Game1.player.temporarilyInvincible = false;
+        }
+
+        private void GameLoop_Saving(object? sender, StardewModdingAPI.Events.SavingEventArgs e)
+        {
+            //reset invincibility settings while saving to help prevent future potential errors if the mod is disabled later
+            //redudant with DayEnding to handle farmhand inconsistency
+            Game1.player.temporaryInvincibilityTimer = 0;
+            Game1.player.currentTemporaryInvincibilityDuration = 0;
+            Game1.player.temporarilyInvincible = false;
         }
 
         private void Display_Rendered(object? sender, StardewModdingAPI.Events.RenderedEventArgs e)
@@ -81,6 +110,18 @@ namespace PauseInMultiplayer
 
                 //send message denoting whether or not monsters will be locked
                 this.Helper.Multiplayer.SendMessage(lockMonsters ? "true" : "false", "lockMonsters", modIDs: new[] {this.ModManifest.UniqueID}, playerIDs: new[] {e.Peer.PlayerID});
+
+                //check for version match
+                IMultiplayerPeerMod pauseMod = null;
+                pauseMod = e.Peer.GetMod(this.ModManifest.UniqueID);
+                if (pauseMod == null)
+                    Game1.chatBox.addErrorMessage("Farmhand " + Game1.getFarmer(e.Peer.PlayerID).Name + " does not have Pause in Multiplayer mod.");
+                else if (!pauseMod.Version.Equals(this.ModManifest.Version))
+                {
+                    Game1.chatBox.addErrorMessage("Farmhand " + Game1.getFarmer(e.Peer.PlayerID).Name + " has mismatched Pause in Multiplayer version.");
+                    Game1.chatBox.addErrorMessage($"Host Version: {this.ModManifest.Version} | {Game1.getFarmer(e.Peer.PlayerID).Name} Version: {pauseMod.Version}");
+                }
+                    
             }
                 
         }
@@ -293,6 +334,22 @@ namespace PauseInMultiplayer
                 shouldPauseLast = shouldPauseNow;
             }
 
+            //check if the player has jumped down a Skull Cavern Shaft
+            //TODO - currently only works for host, needs revision
+            if (!this.config.DisableSkullShaftFix && inSkull == "true")
+            {
+                int num = (Game1.player.currentLocation as StardewValley.Locations.MineShaft).mineLevel - lastSkullLevel;
+
+                if (num > 1)
+                {
+                    Game1.player.health = Math.Max(1, Game1.player.health - num * 3);
+                    if (healthLock != -100)
+                        healthLock = Game1.player.health;
+                }
+
+                lastSkullLevel = (Game1.player.currentLocation as StardewValley.Locations.MineShaft).mineLevel;
+            }
+
             //pause food and drink buff durations must be run for each player independently
             //handle health locks on a per player basis
             if (shouldPauseNow)
@@ -345,17 +402,27 @@ namespace PauseInMultiplayer
 
         private bool shouldPause()
         {
-            if (Context.IsMainPlayer)
+            try
             {
-                foreach (string pauseTime in pauseTimeAll.Values)
-                    if (pauseTime == "false") return false;
+                if (Context.IsMainPlayer)
+                {
+                    foreach (string pauseTime in pauseTimeAll.Values)
+                        if (pauseTime == "false") return false;
 
-                return true;
+                    return true;
+                }
+                else
+                {
+                    return pauseCommand == "true" ? true : false;
+                }
             }
-            else
+            catch (Exception ex)
             {
-                return pauseCommand == "true" ? true : false;
+                this.Monitor.Log("Reinitializing pauseCommand.", LogLevel.Debug);
+                pauseCommand = "false";
+                return false;
             }
+            
 
         }
 
@@ -393,6 +460,8 @@ namespace PauseInMultiplayer
     {
         public bool ShowPauseX { get; set; } = true;
         public bool FixSkullTime { get; set; } = true;
+
+        public bool DisableSkullShaftFix { get; set; } = false;
         public bool LockMonsters { get; set; } = true;
     }
 }
