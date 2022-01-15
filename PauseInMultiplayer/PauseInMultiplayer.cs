@@ -157,10 +157,14 @@ namespace PauseInMultiplayer
                     else if (e.Type == "votePause")
                     {
                         votePauseAll[e.FromPlayerID] = e.ReadAs<bool>();
-                        if(e.ReadAs<bool>())
-                            Game1.chatBox.addInfoMessage($"{Game1.getFarmer(e.FromPlayerID).Name} voted to pause the game.");
+                        int votedYes = 0;
+                        foreach (bool vote in votePauseAll.Values)
+                            if (vote) votedYes++;
+
+                        if (e.ReadAs<bool>())
+                            Game1.chatBox.addInfoMessage($"{Game1.getFarmer(e.FromPlayerID).Name} voted to pause the game. ({votedYes}/{Game1.getOnlineFarmers().Count})");
                         else
-                            Game1.chatBox.addInfoMessage($"{Game1.getFarmer(e.FromPlayerID).Name} voted to unpause the game.");
+                            Game1.chatBox.addInfoMessage($"{Game1.getFarmer(e.FromPlayerID).Name} voted to unpause the game. ({votedYes}/{Game1.getOnlineFarmers().Count})");
                     }
                         
                 }
