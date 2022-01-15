@@ -37,6 +37,9 @@ namespace PauseInMultiplayer
         Dictionary<StardewValley.Monsters.Monster, Vector2> monsterLocks = new Dictionary<StardewValley.Monsters.Monster, Vector2>();
         bool lockMonsters = false;
 
+        bool votePause = false;
+        IDictionary<long, bool> votePauseAll;
+        
         ModConfig config;
 
         public override void Entry(IModHelper helper)
@@ -60,6 +63,18 @@ namespace PauseInMultiplayer
             Helper.Events.Multiplayer.PeerDisconnected += Multiplayer_PeerDisconnected;
 
             Helper.Events.Display.Rendered += Display_Rendered;
+
+            Helper.Events.Input.ButtonPressed += Input_ButtonPressed;
+        }
+
+        private void Input_ButtonPressed(object? sender, StardewModdingAPI.Events.ButtonPressedEventArgs e)
+        {
+            if (!Context.IsWorldReady) return;
+
+            if(e.Button == config.VotePauseButton)
+            {
+                votePauseToggle();
+            }
         }
 
         private void GameLoop_DayEnding(object? sender, StardewModdingAPI.Events.DayEndingEventArgs e)
@@ -107,6 +122,7 @@ namespace PauseInMultiplayer
             {
                 pauseTimeAll[e.Peer.PlayerID] = "false";
                 inSkullAll[e.Peer.PlayerID] = "false";
+                votePauseAll[e.Peer.PlayerID] = false;
 
                 //send message denoting whether or not monsters will be locked
                 this.Helper.Multiplayer.SendMessage(lockMonsters ? "true" : "false", "lockMonsters", modIDs: new[] {this.ModManifest.UniqueID}, playerIDs: new[] {e.Peer.PlayerID});
@@ -138,6 +154,15 @@ namespace PauseInMultiplayer
                         pauseTimeAll[e.FromPlayerID] = e.ReadAs<string>();
                     else if (e.Type == "inSkull")
                         inSkullAll[e.FromPlayerID] = e.ReadAs<string>();
+                    else if (e.Type == "votePause")
+                    {
+                        votePauseAll[e.FromPlayerID] = e.ReadAs<bool>();
+                        if(e.ReadAs<bool>())
+                            Game1.chatBox.addInfoMessage($"{Game1.getFarmer(e.FromPlayerID).Name} voted to pause the game.");
+                        else
+                            Game1.chatBox.addInfoMessage($"{Game1.getFarmer(e.FromPlayerID).Name} voted to unpause the game.");
+                    }
+                        
                 }
             }
             else
@@ -167,6 +192,9 @@ namespace PauseInMultiplayer
 
                 //setup lockMonsters for main player
                 lockMonsters = this.config.LockMonsters;
+
+                votePauseAll = new Dictionary<long, bool>();
+                votePauseAll[Game1.player.UniqueMultiplayerID] = false;
             }
 
         }
@@ -335,7 +363,6 @@ namespace PauseInMultiplayer
             }
 
             //check if the player has jumped down a Skull Cavern Shaft
-            //TODO - currently only works for host, needs revision
             if (!this.config.DisableSkullShaftFix && inSkull == "true")
             {
                 int num = (Game1.player.currentLocation as StardewValley.Locations.MineShaft).mineLevel - lastSkullLevel;
@@ -404,12 +431,43 @@ namespace PauseInMultiplayer
 
         }
 
+        public void votePauseToggle()
+        {
+            votePause = !votePause;
+            if (Context.IsMainPlayer)
+            {
+                votePauseAll[Game1.player.UniqueMultiplayerID] = votePause;
+                int votedYes = 0;
+                foreach(bool vote in votePauseAll.Values)
+                    if(vote) votedYes++;
+
+                if (votePause)
+                    Game1.chatBox.addInfoMessage($"{Game1.player.Name} voted to pause the game. ({votedYes}/{Game1.getOnlineFarmers().Count})");
+                else
+                    Game1.chatBox.addInfoMessage($"{Game1.player.Name} voted to unpause the game. ({votedYes}/{Game1.getOnlineFarmers().Count})");
+            }
+            else
+            {
+                this.Helper.Multiplayer.SendMessage<bool>(votePause, "votePause", modIDs: new[] { this.ModManifest.UniqueID }, playerIDs: new[] { Game1.MasterPlayer.UniqueMultiplayerID });
+            }
+        }
+
         private bool shouldPause()
         {
             try
             {
                 if (Context.IsMainPlayer)
                 {
+                    if(config.EnableVotePause)
+                    {
+                        bool votedPause = true;
+                        foreach (bool vote in votePauseAll.Values)
+                            if (!vote) votedPause = false;
+
+                        if (votedPause)
+                            return true;
+                    }
+
                     foreach (string pauseTime in pauseTimeAll.Values)
                         if (pauseTime == "false") return false;
 
@@ -458,6 +516,8 @@ namespace PauseInMultiplayer
 
             return position;
         }
+
+
     }
 
     class ModConfig
@@ -467,5 +527,9 @@ namespace PauseInMultiplayer
 
         public bool DisableSkullShaftFix { get; set; } = false;
         public bool LockMonsters { get; set; } = true;
+       
+        public bool EnableVotePause { get; set; } = true;
+
+        public SButton VotePauseButton { get; set; } = SButton.F1;
     }
 }
