@@ -71,7 +71,7 @@ namespace PauseInMultiplayer
         {
             if (!Context.IsWorldReady) return;
 
-            if(e.Button == config.VotePauseButton)
+            if(e.Button == config.VotePauseHotkey)
             {
                 votePauseToggle();
             }
@@ -112,6 +112,7 @@ namespace PauseInMultiplayer
             {
                 pauseTimeAll.Remove(e.Peer.PlayerID);
                 inSkullAll.Remove(e.Peer.PlayerID);
+                votePauseAll.Remove(e.Peer.PlayerID);
             }
                 
         }
@@ -534,6 +535,6 @@ namespace PauseInMultiplayer
        
         public bool EnableVotePause { get; set; } = true;
 
-        public SButton VotePauseButton { get; set; } = SButton.F1;
+        public SButton VotePauseHotkey { get; set; } = SButton.Pause;
     }
 }

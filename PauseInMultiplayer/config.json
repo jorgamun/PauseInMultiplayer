@@ -1,0 +1,8 @@
+{
+  "ShowPauseX": true,
+  "FixSkullTime": true,
+  "DisableSkullShaftFix": false,
+  "LockMonsters": true,
+  "EnableVotePause": true,
+  "VotePauseHotkey": "Pause"
+}
