@@ -157,6 +157,8 @@ namespace PauseInMultiplayer
                         inSkullAll[e.FromPlayerID] = e.ReadAs<string>();
                     else if (e.Type == "votePause")
                     {
+                        if (!config.EnableVotePause) return;
+
                         votePauseAll[e.FromPlayerID] = e.ReadAs<bool>();
                         int votedYes = 0;
                         foreach (bool vote in votePauseAll.Values)
@@ -441,6 +443,8 @@ namespace PauseInMultiplayer
             votePause = !votePause;
             if (Context.IsMainPlayer)
             {
+                if (!config.EnableVotePause) return;
+
                 votePauseAll[Game1.player.UniqueMultiplayerID] = votePause;
                 int votedYes = 0;
                 foreach(bool vote in votePauseAll.Values)
