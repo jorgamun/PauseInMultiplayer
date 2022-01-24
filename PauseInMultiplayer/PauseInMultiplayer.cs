@@ -39,6 +39,8 @@ namespace PauseInMultiplayer
 
         bool votePause = false;
         IDictionary<long, bool> votePauseAll;
+
+        bool pauseOverride = false;
         
         ModConfig config;
 
@@ -65,6 +67,109 @@ namespace PauseInMultiplayer
             Helper.Events.Display.Rendered += Display_Rendered;
 
             Helper.Events.Input.ButtonPressed += Input_ButtonPressed;
+
+            Helper.Events.GameLoop.GameLaunched += GameLoop_GameLaunched;
+        }
+
+        private void GameLoop_GameLaunched(object? sender, StardewModdingAPI.Events.GameLaunchedEventArgs e)
+        {
+            //GMCM support
+            var configMenu = this.Helper.ModRegistry.GetApi<GenericModConfigMenu.IGenericModConfigMenuApi>("spacechase0.GenericModConfigMenu");
+            if (configMenu == null) return;
+
+            configMenu.Register(mod: this.ModManifest, reset: () => this.config = new ModConfig(), save: () => this.Helper.WriteConfig(this.config));
+
+            configMenu.AddSectionTitle(
+                mod: this.ModManifest,
+                text: () => "Local Settings"
+            );
+
+            configMenu.AddBoolOption(
+                mod:this.ModManifest,
+                name: () => "Show X while paused",
+                tooltip: () => "Toggles whether or not to display an X over the clock while paused.",
+                getValue: () => this.config.ShowPauseX,
+                setValue: value => this.config.ShowPauseX = value
+            );
+
+            configMenu.AddBoolOption(
+                mod: this.ModManifest,
+                name: () => "Show vote messages",
+                tooltip: () => "Toggles whether or not to update the chat with vote pause messages.",
+                getValue: () => this.config.DisplayVotePauseMessages,
+                setValue: value => this.config.DisplayVotePauseMessages = value
+            );
+
+            configMenu.AddKeybind(
+                mod: this.ModManifest,
+                name: () => "Vote to pause keybind",
+                tooltip: () => "Set as a key that you won't use for other purposes.",
+                getValue: () => this.config.VotePauseHotkey,
+                setValue: value => this.config.VotePauseHotkey = value
+            );
+
+            configMenu.AddBoolOption(
+                mod: this.ModManifest,
+                name: () => "Disable Skull Cavern shaft fix",
+                tooltip: () => "Only set this to true if you have a specific reason to, such as using the Skull Cavern elevator mod.",
+                getValue: () => this.config.DisableSkullShaftFix,
+                setValue: value => this.config.DisableSkullShaftFix = value
+            );
+
+            configMenu.AddSectionTitle(
+                mod: this.ModManifest,
+                text: () => "Host-Only Settings"
+            );
+
+            configMenu.AddBoolOption(
+                mod: this.ModManifest,
+                name: () => "Fix Skull Cavern time",
+                tooltip: () => "(host only)\nToggles whether or not to slow down time like in single-player if all players are in the Skull Cavern.",
+                getValue: () => this.config.FixSkullTime,
+                setValue: value => this.config.FixSkullTime = value
+            );
+
+            configMenu.AddBoolOption(
+                mod: this.ModManifest,
+                name: () => "Monster/HP pause lock",
+                tooltip: () => "(host only)\nToggles whether or not monsters will freeze and health will lock while paused.",
+                getValue: () => this.config.LockMonsters,
+                setValue: value => this.config.LockMonsters = value
+            );
+
+            configMenu.AddBoolOption(
+                mod: this.ModManifest,
+                name: () => "Enable vote to pause",
+                tooltip: () => "(host only)\nToggles vote to pause functionality.\nThis is in addition to normal pause functionality.",
+                getValue: () => this.config.EnableVotePause,
+                setValue: value => this.config.EnableVotePause = value
+            );
+
+            configMenu.AddBoolOption(
+                mod: this.ModManifest,
+                name: () => "Match joining player vote to host",
+                tooltip: () => "(host only)\nToggles whether or not joining players will automatically have their vote to pause set to the host's.",
+                getValue: () => this.config.JoinVoteMatchesHost,
+                setValue: value => this.config.JoinVoteMatchesHost = value
+            );
+
+            configMenu.AddBoolOption(
+                mod: this.ModManifest,
+                name: () => "Enable pause override key",
+                tooltip: () => "(host only)\nToggles whether or not pressing the pause override key will toggle pausing the game.",
+                getValue: () => this.config.EnablePauseOverride,
+                setValue: value => this.config.EnablePauseOverride = value
+            );
+
+            configMenu.AddKeybind(
+                mod: this.ModManifest,
+                name: () => "Override pause hotkey",
+                tooltip: () => "(host only)\nSet as a key that you won't use for other purposes.",
+                getValue: () => this.config.PauseOverrideHotkey,
+                setValue: value => this.config.PauseOverrideHotkey = value
+            );
+            
+
         }
 
         private void Input_ButtonPressed(object? sender, StardewModdingAPI.Events.ButtonPressedEventArgs e)
@@ -75,12 +180,31 @@ namespace PauseInMultiplayer
             {
                 votePauseToggle();
             }
+
+            else if(e.Button == config.PauseOverrideHotkey && Context.IsMainPlayer && config.EnablePauseOverride)
+            {
+                pauseOverride = !pauseOverride;
+
+                if (!config.DisplayVotePauseMessages)
+                    return;
+
+                if (pauseOverride)
+                {
+                    this.Helper.Multiplayer.SendMessage<string>("The host has paused via override.", "info", new[] { this.ModManifest.UniqueID });
+                    Game1.chatBox.addInfoMessage("The host has paused via override.");
+                }
+                else
+                {
+                    this.Helper.Multiplayer.SendMessage<string>("The host has unpaused their override.", "info", new[] { this.ModManifest.UniqueID });
+                    Game1.chatBox.addInfoMessage("The host has unpaused their override.");
+                }
+            }
         }
 
         private void GameLoop_DayEnding(object? sender, StardewModdingAPI.Events.DayEndingEventArgs e)
         {
             //reset invincibility settings while saving to help prevent future potential errors if the mod is disabled later
-            //redudant with Saving to handle farmhand inconsistency
+            //redundant with Saving to handle farmhand inconsistency
             Game1.player.temporaryInvincibilityTimer = 0;
             Game1.player.currentTemporaryInvincibilityDuration = 0;
             Game1.player.temporarilyInvincible = false;
@@ -89,7 +213,7 @@ namespace PauseInMultiplayer
         private void GameLoop_Saving(object? sender, StardewModdingAPI.Events.SavingEventArgs e)
         {
             //reset invincibility settings while saving to help prevent future potential errors if the mod is disabled later
-            //redudant with DayEnding to handle farmhand inconsistency
+            //redundant with DayEnding to handle farmhand inconsistency
             Game1.player.temporaryInvincibilityTimer = 0;
             Game1.player.currentTemporaryInvincibilityDuration = 0;
             Game1.player.temporarilyInvincible = false;
@@ -138,7 +262,33 @@ namespace PauseInMultiplayer
                     Game1.chatBox.addErrorMessage("Farmhand " + Game1.getFarmer(e.Peer.PlayerID).Name + " has mismatched Pause in Multiplayer version.");
                     Game1.chatBox.addErrorMessage($"Host Version: {this.ModManifest.Version} | {Game1.getFarmer(e.Peer.PlayerID).Name} Version: {pauseMod.Version}");
                 }
-                    
+
+                //sets the joined player's vote to pause as the host's if enabled
+                if(this.config.JoinVoteMatchesHost && this.config.EnableVotePause)
+                {
+                    votePauseAll[e.Peer.PlayerID] = votePause;
+
+                    //sync votePause to local client for joining player
+                    this.Helper.Multiplayer.SendMessage<bool>(votePause, "setVotePause", new[] { this.ModManifest.UniqueID }, new[] { e.Peer.PlayerID });
+
+                    int votedYes = 0;
+                    foreach (bool vote in votePauseAll.Values)
+                        if (vote) votedYes++;
+
+                    if (votePause)
+                    {
+                        this.Helper.Multiplayer.SendMessage<string>($"{Game1.getFarmer(e.Peer.PlayerID).Name} joined with a vote to pause. ({votedYes}/{Game1.getOnlineFarmers().Count})", "info", new[] { this.ModManifest.UniqueID });
+                        Game1.chatBox.addInfoMessage($"{Game1.getFarmer(e.Peer.PlayerID).Name} joined with a vote to pause. ({votedYes}/{Game1.getOnlineFarmers().Count})");
+                    }
+                    else
+                    {
+                        //seems unnecessary to display message for joining without a votepause via host
+                        //this.Helper.Multiplayer.SendMessage<string>($"{Game1.getFarmer(e.Peer.PlayerID).Name} joined with a vote to unpause. ({votedYes}/{Game1.getOnlineFarmers().Count})", "info", new[] { this.ModManifest.UniqueID });
+                        //Game1.chatBox.addInfoMessage($"{Game1.getFarmer(e.Peer.PlayerID).Name} joined with a vote to unpause. ({votedYes}/{Game1.getOnlineFarmers().Count})");
+                    }
+
+                }
+
             }
                 
         }
@@ -147,6 +297,14 @@ namespace PauseInMultiplayer
 
         private void Multiplayer_ModMessageReceived(object? sender, StardewModdingAPI.Events.ModMessageReceivedEventArgs e)
         {
+            if(e.FromModID == this.ModManifest.UniqueID && e.Type == "info")
+            {
+                if(config.DisplayVotePauseMessages)
+                    Game1.chatBox.addInfoMessage(e.ReadAs<string>());
+               
+                return;
+            }
+            
             if (Context.IsMainPlayer)
             {
                 if (e.FromModID == this.ModManifest.UniqueID)
@@ -165,11 +323,17 @@ namespace PauseInMultiplayer
                             if (vote) votedYes++;
 
                         if (e.ReadAs<bool>())
+                        {
+                            this.Helper.Multiplayer.SendMessage<string>($"{Game1.getFarmer(e.FromPlayerID).Name} voted to pause the game. ({votedYes}/{Game1.getOnlineFarmers().Count})", "info", new[] { this.ModManifest.UniqueID });
                             Game1.chatBox.addInfoMessage($"{Game1.getFarmer(e.FromPlayerID).Name} voted to pause the game. ({votedYes}/{Game1.getOnlineFarmers().Count})");
+                        }
                         else
+                        {
+                            this.Helper.Multiplayer.SendMessage<string>($"{Game1.getFarmer(e.FromPlayerID).Name} voted to unpause the game. ({votedYes}/{Game1.getOnlineFarmers().Count})", "info", new[] { this.ModManifest.UniqueID });
                             Game1.chatBox.addInfoMessage($"{Game1.getFarmer(e.FromPlayerID).Name} voted to unpause the game. ({votedYes}/{Game1.getOnlineFarmers().Count})");
+                        }
                     }
-                        
+
                 }
             }
             else
@@ -181,6 +345,10 @@ namespace PauseInMultiplayer
                 else if(e.FromModID == this.ModManifest.UniqueID && e.Type == "lockMonsters")
                 {
                     this.lockMonsters = e.ReadAs<string>() == "true" ? true : false;
+                }
+                else if(e.FromModID == this.ModManifest.UniqueID && e.Type == "setVotePause")
+                {
+                    this.votePause = e.ReadAs<bool>();
                 }
             }
 
@@ -451,9 +619,15 @@ namespace PauseInMultiplayer
                     if(vote) votedYes++;
 
                 if (votePause)
+                {
+                    this.Helper.Multiplayer.SendMessage<string>($"{Game1.player.Name} voted to pause the game. ({votedYes}/{Game1.getOnlineFarmers().Count})", "info", new[] { this.ModManifest.UniqueID });
                     Game1.chatBox.addInfoMessage($"{Game1.player.Name} voted to pause the game. ({votedYes}/{Game1.getOnlineFarmers().Count})");
+                }
                 else
+                {
+                    this.Helper.Multiplayer.SendMessage<string>($"{Game1.player.Name} voted to unpause the game. ({votedYes}/{Game1.getOnlineFarmers().Count})", "info", new[] { this.ModManifest.UniqueID });
                     Game1.chatBox.addInfoMessage($"{Game1.player.Name} voted to unpause the game. ({votedYes}/{Game1.getOnlineFarmers().Count})");
+                }
             }
             else
             {
@@ -467,6 +641,9 @@ namespace PauseInMultiplayer
             {
                 if (Context.IsMainPlayer)
                 {
+                    if (config.EnablePauseOverride && pauseOverride)
+                        return true;
+
                     if(config.EnableVotePause)
                     {
                         bool votedPause = true;
@@ -532,6 +709,7 @@ namespace PauseInMultiplayer
     class ModConfig
     {
         public bool ShowPauseX { get; set; } = true;
+        
         public bool FixSkullTime { get; set; } = true;
 
         public bool DisableSkullShaftFix { get; set; } = false;
@@ -539,6 +717,14 @@ namespace PauseInMultiplayer
        
         public bool EnableVotePause { get; set; } = true;
 
+        public bool JoinVoteMatchesHost { get; set; } = true;
+
         public SButton VotePauseHotkey { get; set; } = SButton.Pause;
+
+        public bool EnablePauseOverride { get; set; } = true;
+
+        public SButton PauseOverrideHotkey { get; set;} = SButton.Scroll;
+
+        public bool DisplayVotePauseMessages { get; set; } = true;
     }
 }
