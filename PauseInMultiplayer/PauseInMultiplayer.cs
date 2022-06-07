@@ -535,7 +535,8 @@ namespace PauseInMultiplayer
                     //pause all Monsters
                     List<GameLocation> farmerLocations = new List<GameLocation>();
                     foreach (Farmer f in Game1.getOnlineFarmers())
-                        farmerLocations.Add(f.currentLocation);
+                        if (f.currentLocation != null)
+                            farmerLocations.Add(f.currentLocation);
                     foreach (GameLocation l in farmerLocations)
                     {
                         foreach (Character c in l.characters)
