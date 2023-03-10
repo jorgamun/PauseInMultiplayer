@@ -180,6 +180,14 @@ namespace PauseInMultiplayer
                 setValue: value => this.config.AnyCutscenePauses = value
             );
 
+            configMenu.AddBoolOption(
+                mod: this.ModManifest,
+                name: () => "Any player pauses",
+                tooltip: () => "(host only)\nWhen enabled, time will pause if any player is in a pausable state.",
+                getValue: () => this.config.AnyPausePauses,
+                setValue: value => this.config.AnyPausePauses = value
+            );
+
 
         }
 
@@ -535,7 +543,8 @@ namespace PauseInMultiplayer
                     //pause all Monsters
                     List<GameLocation> farmerLocations = new List<GameLocation>();
                     foreach (Farmer f in Game1.getOnlineFarmers())
-                        farmerLocations.Add(f.currentLocation);
+                        if (f.currentLocation != null)
+                            farmerLocations.Add(f.currentLocation);
                     foreach (GameLocation l in farmerLocations)
                     {
                         foreach (Character c in l.characters)
@@ -702,11 +711,20 @@ namespace PauseInMultiplayer
                                 return true;
                     }
 
-                    //normal pause logic (terminates via false)
-                    foreach (string pauseTime in pauseTimeAll.Values)
-                        if (pauseTime == "false") return false;
+                    if (config.AnyPausePauses)
+                    {
+                        foreach (string pauseTime in pauseTimeAll.Values)
+                            if (pauseTime == "true") return true;
 
-                    return true;
+                        return false;
+                    }
+                    else
+                    {
+                        foreach (string pauseTime in pauseTimeAll.Values)
+                            if (pauseTime == "false") return false;
+
+                        return true;
+                    }
                 }
                 else
                 {
@@ -765,6 +783,8 @@ namespace PauseInMultiplayer
         public bool LockMonsters { get; set; } = true;
 
         public bool AnyCutscenePauses { get; set; } = false;
+
+        public bool AnyPausePauses { get; set; } = false;
        
         public bool EnableVotePause { get; set; } = true;
 
